@@ -19,8 +19,7 @@ cd opencode_workspace
 
 :: Ensure config directory and opencode.json exist locally in the mounted workspace folder
 if not exist ".config\opencode" mkdir .config\opencode
-if not exist "opencode.json" echo {} > opencode.json
-copy opencode.json .config\opencode\opencode.json >nul
+copy ..\opencode.json .config\opencode\opencode.json >nul
 
 echo Launching sbx environment for opencode...
 

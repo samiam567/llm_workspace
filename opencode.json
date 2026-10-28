@@ -1,0 +1,22 @@
+{
+    "$schema": "https://opencode.ai/config.json",
+    "provider": {
+        "llamacpp": {
+            "npmPackage": "@ai-sdk/openai",
+            "name": "llama.cpp",
+            "options": {
+                "baseURL": "http://host.docker.internal:11434/v1"
+            },
+            "models": {
+                "ornith-9b": {
+                    "id": "Ornith-1.5-9B-Q4_K_M",
+                    "name": "Ornith 1.5 9B"
+                },
+                "ornith-35b": {
+                    "id": "Ornith-1.5-35B-A3B-Q4_K_M",
+                    "name": "Ornith 1.5 35B"
+                }
+            }
+        }
+    }
+}

@@ -41,3 +41,12 @@ Run the setup script
 ~~~
 setup.sh
 ~~~
+
+## Post install
+on your first launch, run 
+~~~
+rm -rf /home/agent/.config
+cp -r {PATH_TO_OPENCODE_WORKSPACE}/.config /home/agent/
+~~~
+to copy the config in. 
+Then restart the workspace to load your config. This must be done every time a new sandbox is created
