@@ -1,0 +1,60 @@
+services:
+  llamacpp:
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    container_name: llamacpp-server
+    restart: unless-stopped
+    ports:
+      - "11434:8080"
+    volumes:
+      - ./models:/models
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command:
+      - "--models-dir"
+      - "/models"
+      - "--models-max"
+      - "1"                  # Maximum number of models to keep loaded simultaneously in memory/VRAM
+      - "--timeout"
+      - "3600"               # Sets a 1-hour (3600 seconds) idle/inactivity timeout
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+      - "--ctx-size"
+      - "128000"           # Lower context from 128k to 32k (or 16k) to fit the KV cache in 12GB VRAM
+      - "--n-gpu-layers"
+      - "99"              # Keep attention layers on GPU
+      - "--n-cpu-moe"
+      - "28"              # Increase CPU MoE offload layers to 24 (or higher) to shift enough expert weight to system RAM so VRAM doesn't overflow
+      - "-ctk"
+      - "q4_0"            # Quantize the Key cache to save VRAM
+      - "-ctv"
+      - "q4_0"            # Quantize the Value cache to save VRAM
+      - "-np"
+      - "1"               # only fulfill one request at once
+      - "--mmproj"
+      - "/models/mmproj-Ornith-1.5-9B-f16.gguf"   # vision projector
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - open-webui_data:/app/backend/data
+    depends_on:
+      - llamacpp
+
+
+volumes:
+  open-webui_data:
