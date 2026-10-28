@@ -1,4 +1,5 @@
 @echo off
+set "SANDBOX_NAME=llm-workspace"
 setlocal enabledelayedexpansion
 
 :: Load environment variables from .env file if it exists
@@ -10,33 +11,32 @@ if exist .env (
     echo Warning: .env file not found! OPENCODE_SERVER_PASSWORD may be undefined.
 )
 
-echo Starting Docker Compose stack...
+:: Start the docker compose 
 docker compose up -d
-if errorlevel 1 goto :error
 
-echo Preparing configuration...
-cd opencode_workspace
 
-copy ..\opencode.json .config\opencode\opencode.json >nul
-copy ..\setup_opencode.sh .
+:: configure sandbox
 
-echo Launching sbx environment for opencode...
 
-:: Run sbx with the correct flags and direct server invocation
-sbx run -e OPENCODE_SERVER_PASSWORD="%OPENCODE_SERVER_PASSWORD%" ^
-    --publish 0.0.0.0:4096:4096 ^
+:: Check if the sandbox name exists in the output of 'sbx list'
+sbx list | findstr /C:"%SANDBOX_NAME%" >nul 2>&1
+
+if %errorlevel% equ 0 (
+    echo Sandbox '%SANDBOX_NAME%' already exists. Skipping creation.
+    sbx start %SANDBOX_NAME% 2>nul
+) else (
+    echo Sandbox '%SANDBOX_NAME%' not found. Creating...
+    sbx create --name %SANDBOX_NAME% opencode
+    sbx ports llm-workspace --publish 0.0.0.0:4096:4096
+    echo Sandbox created successfully.
+)
+
+sbx cp opencode.json llm-workspace:/home/agent/.config/opencode/opencode.json
+
+:: launch opencode in the sandbox
+sbx run --name llm-workspace -e OPENCODE_SERVER_PASSWORD="%OPENCODE_SERVER_PASSWORD%" ^
     opencode -- serve --hostname 0.0.0.0 --port 4096 --cors "*"
-if errorlevel 1 goto :error
 
-echo Stopping Docker Compose Stack...
-cd ..
+
+:: stop the docker when completed
 docker compose down
-
-echo Done.
-exit /b 0
-
-:error
-echo An error occurred. Exiting.
-cd ..
-docker compose down
-exit /b 1

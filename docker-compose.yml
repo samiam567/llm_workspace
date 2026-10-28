@@ -40,7 +40,7 @@ services:
       - "-np"
       - "1"               # only fulfill one request at once
       - "--mmproj"
-      - "/models/mmproj-Ornith-1.5-9B-f16.gguf"   # vision projector
+      - "/models/mmproj-Ornith-1.5-9B-f16.gguf" # Vision projector file
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
