@@ -17,9 +17,8 @@ if errorlevel 1 goto :error
 echo Preparing configuration...
 cd opencode_workspace
 
-:: Ensure config directory and opencode.json exist locally in the mounted workspace folder
-if not exist ".config\opencode" mkdir .config\opencode
 copy ..\opencode.json .config\opencode\opencode.json >nul
+copy ..\setup_opencode.sh .
 
 echo Launching sbx environment for opencode...
 

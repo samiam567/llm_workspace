@@ -45,8 +45,8 @@ setup.sh
 ## Post install
 on your first launch, run 
 ~~~
-rm -rf /home/agent/.config
-cp -r {PATH_TO_OPENCODE_WORKSPACE}/.config /home/agent/
+setup_opencode.sh
 ~~~
+INSIDE the opencode webui terminal. It will be located in the same folder as opencode_workspace on your host computer (starting with /c/Users/... if on windows).
 to copy the config in. 
 Then restart the workspace to load your config. This must be done every time a new sandbox is created
