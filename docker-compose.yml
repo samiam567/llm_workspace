@@ -32,15 +32,18 @@ services:
       - "--n-gpu-layers"
       - "99"              # Keep attention layers on GPU
       - "--n-cpu-moe"
-      - "28"              # Increase CPU MoE offload layers to 24 (or higher) to shift enough expert weight to system RAM so VRAM doesn't overflow
+      - "26"              # Increase CPU MoE offload layers to 24 (or higher) to shift enough expert weight to system RAM so VRAM doesn't overflow
+      - "--flash-attn"
+      - "on"
+      - "--mmproj"
+      - "/models/mmproj-Ornith-1.5-9B-f16.gguf" # Vision projector file
       - "-ctk"
       - "q4_0"            # Quantize the Key cache to save VRAM
       - "-ctv"
       - "q4_0"            # Quantize the Value cache to save VRAM
       - "-np"
       - "1"               # only fulfill one request at once
-      - "--mmproj"
-      - "/models/mmproj-Ornith-1.5-9B-f16.gguf" # Vision projector file
+
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
