@@ -41,8 +41,15 @@ Follow the steps below to set up **Docker Desktop** and the **Docker Sandboxes (
    sbx login
 
 ## Linux
-Run the setup script
-~~~
-setup.sh
-~~~
 
+### Step 2: Install Docker & Docker Sandboxees
+Install docker and docker sandboxes by fdollowing the instructions on [Docker's Website](https://docs.docker.com/ai/sandboxes/install/)
+
+Note: DO NOT install docker desktop when using Linux. This can cause issues.
+
+
+### Step 2: Authenticate & Run
+
+1. Authenticate your sandbox CLI by running:
+   ```cmd
+   sbx login
