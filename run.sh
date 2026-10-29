@@ -1,46 +1,33 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-# Exit immediately if a command exits with a non-zero status
-set -e
-
-# Error handling function to clean up and exit
-handle_error() {
-    echo "An error occurred. Exiting."
-    # Return to the root directory if we are currently inside opencode_workspace
-    cd .. 2>/dev/null || true
-    docker compose down
-    exit 1
-}
-
-# Trap any errors to trigger the cleanup
-trap 'handle_error' ERR
+SANDBOX_NAME="llm-workspace"
 
 # Load environment variables from .env file if it exists
-if [ -f ".env" ]; then
-    set -a
-    source .env
-    set +a
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | xargs)
 else
     echo "Warning: .env file not found! OPENCODE_SERVER_PASSWORD may be undefined."
 fi
 
-echo "Starting Docker Compose stack..."
+# Start the docker compose 
 docker compose up -d
 
-echo "Preparing configuration..."
-cd opencode_workspace
+# configure sandbox
 
-cp ../opencode.json .config/opencode/opencode.json
-cp ../setup_opencode.sh .
+# Check if the sandbox name exists in the output of 'sbx list'
+if sbx list | grep -q "$SANDBOX_NAME"; then
+    echo "Sandbox '$SANDBOX_NAME' already exists. Skipping creation."
+    sbx start "$SANDBOX_NAME" 2>/dev/null
+else
+    echo "Sandbox '$SANDBOX_NAME' not found. Creating..."
+    sbx create --name "$SANDBOX_NAME" shell ./opencode_workspace
+    sbx ports llm-workspace --publish 0.0.0.0:4096:4096
+    sbx ports llm-workspace --publish 0.0.0.0:8000:8000
+    sbx exec llm-workspace bash -c "python3 -m pip install open-terminal --break-system-packages"
+    echo "Sandbox created successfully."
+fi
 
-echo "Launching sbx environment for opencode..."
-sbx run -e OPENCODE_SERVER_PASSWORD="${OPENCODE_SERVER_PASSWORD}" \
-    --publish 0.0.0.0:4096:4096 \
-    opencode -- serve --hostname 0.0.0.0 --port 4096 --cors "*"
+sbx run llm-workspace -- -c "open-terminal run --host 0.0.0.0 --port 8000 --api-key sbxfsdf"
 
-echo "Stopping Docker Compose Stack..."
-cd ..
+# stop the docker when completed
 docker compose down
-
-echo "Done."
-exit 0

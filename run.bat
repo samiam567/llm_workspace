@@ -26,17 +26,15 @@ if %errorlevel% equ 0 (
     sbx start %SANDBOX_NAME% 2>nul
 ) else (
     echo Sandbox '%SANDBOX_NAME%' not found. Creating...
-    sbx create --name %SANDBOX_NAME% opencode
+    sbx create --name %SANDBOX_NAME% shell .\opencode_workspace
     sbx ports llm-workspace --publish 0.0.0.0:4096:4096
+    sbx ports llm-workspace --publish 0.0.0.0:8000:8000
+    sbx exec llm-workspace bash -c "python3 -m pip install open-terminal --break-system-packages"
     echo Sandbox created successfully.
 )
 
-sbx cp opencode.json llm-workspace:/home/agent/.config/opencode/opencode.json
 
-:: launch opencode in the sandbox
-sbx run --name llm-workspace -e OPENCODE_SERVER_PASSWORD="%OPENCODE_SERVER_PASSWORD%" ^
-    opencode -- serve --hostname 0.0.0.0 --port 4096 --cors "*"
-
+sbx run llm-workspace -- -c "open-terminal run --host 0.0.0.0 --port 8000 --api-key sbxfsdf"
 
 :: stop the docker when completed
 docker compose down
