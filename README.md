@@ -4,8 +4,12 @@ bla bla bla
 # Installation
 
 ## Step 1:
-create a password in the .env file for your opencode server
-
+Set the following variables in a file named ".env" in this directory
+~~~
+SANDBOX_NAME=
+API_KEY=
+WORKSPACE_PATH=
+~~~
 
 ## Windows Environment Setup Guide
 

@@ -1,15 +1,23 @@
 @echo off
-set "SANDBOX_NAME=llm-workspace"
 setlocal enabledelayedexpansion
 
-:: Load environment variables from .env file if it exists
-if exist .env (
-    for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
-        set "%%A=%%B"
-    )
-) else (
-    echo Warning: .env file not found! OPENCODE_SERVER_PASSWORD may be undefined.
+:: Create a default .env file if it doesn't exist
+if not exist .env (
+    echo .env file not found. Creating a default .env file...
+    (
+        echo SANDBOX_NAME=llm-workspace
+        echo WORKSPACE_PATH=.\workspace
+        echo API_KEY=your_actual_secret_key
+    ) > .env
+    echo Default .env created successfully. Please update it with your actual settings if needed.
+    echo.
 )
+
+:: Load environment variables from .env file
+for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
+    set "%%A=%%B"
+)
+
 
 :: Start the docker compose 
 docker compose up -d
@@ -26,15 +34,15 @@ if %errorlevel% equ 0 (
     sbx start %SANDBOX_NAME% 2>nul
 ) else (
     echo Sandbox '%SANDBOX_NAME%' not found. Creating...
-    sbx create --name %SANDBOX_NAME% shell .\opencode_workspace
-    sbx ports llm-workspace --publish 0.0.0.0:4096:4096
-    sbx ports llm-workspace --publish 0.0.0.0:8000:8000
-    sbx exec llm-workspace bash -c "python3 -m pip install open-terminal --break-system-packages"
+    sbx create --name %SANDBOX_NAME% shell %WORKSPACE_PATH%
+    sbx ports %SANDBOX_NAME% --publish 0.0.0.0:4096:4096
+    sbx ports %SANDBOX_NAME% --publish 0.0.0.0:8000:8000
+    sbx exec %SANDBOX_NAME% bash -c "python3 -m pip install open-terminal --break-system-packages"
     echo Sandbox created successfully.
 )
 
-
-sbx run llm-workspace -- -c "open-terminal run --host 0.0.0.0 --port 8000 --api-key sbxfsdf"
+:: Run using the API_KEY loaded from the .env file
+sbx run --name %SANDBOX_NAME% -- -c "open-terminal run --host 0.0.0.0 --port 8000 --api-key %API_KEY%"
 
 :: stop the docker when completed
 docker compose down
