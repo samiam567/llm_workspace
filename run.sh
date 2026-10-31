@@ -7,10 +7,10 @@ set -e
 if [ ! -f .env ]; then
     echo ".env file not found. Creating a default .env file..."
     cat << 'EOF' > .env
-SANDBOX_NAME=llm-workspace
-WORKSPACE_PATH=./workspace
-API_KEY=your_actual_secret_key
-EOF
+    SANDBOX_NAME=llm-workspace
+    WORKSPACE_PATH=./workspace
+    API_KEY=your_actual_secret_key
+    EOF
     echo "Default .env created successfully. Please update it with your actual settings if needed."
     echo ""
 fi

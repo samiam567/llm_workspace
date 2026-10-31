@@ -28,7 +28,7 @@ services:
       - "--port"
       - "8080"
       - "--ctx-size"
-      - "128000"           # Lower context from 128k to 32k (or 16k) to fit the KV cache in 12GB VRAM
+      - "64000"           # Lower context from 128k to 32k (or 16k) to fit the KV cache in 12GB VRAM
       - "--n-gpu-layers"
       - "99"              # Keep attention layers on GPU
       - "--n-cpu-moe"
@@ -45,18 +45,43 @@ services:
       - "1"               # only fulfill one request at once
 
 
+
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:v0.12.5
     container_name: open-webui
     restart: unless-stopped
     ports:
       - "3000:8080"
-    environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
     volumes:
       - open-webui_data:/app/backend/data
     depends_on:
       - llamacpp
+
+
+  
+  litellm: # handles multiple requests to get past rate limits in openrouter
+    image: ghcr.io/berriai/litellm:main-stable
+    container_name: litellm
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:4000:4000"
+
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+      - ./litellm/custom_callbacks.py:/app/custom_callbacks.py:ro
+
+    env_file:
+      - .env
+
+    command:
+      - "--config"
+      - "/app/config.yaml"
+      - "--port"
+      - "4000"
+      # - "--detailed_debug"
+    networks:
+      - default
 
 
 volumes:
