@@ -7,7 +7,7 @@ if not exist .env (
     (
         echo SANDBOX_NAME=llm-workspace
         echo WORKSPACE_PATH=.\workspace
-        echo API_KEY=your_actual_secret_key
+        echo OPENTERMINAL_API_KEY=your_actual_secret_key
     ) > .env
     echo Default .env created successfully. Please update it with your actual settings if needed.
     echo.
@@ -42,7 +42,7 @@ if %errorlevel% equ 0 (
 )
 
 :: Run using the API_KEY loaded from the .env file
-sbx run --name %SANDBOX_NAME% -- -c "open-terminal run --host 0.0.0.0 --port 8000 --api-key %API_KEY%"
+sbx run --name %SANDBOX_NAME% -- -c "open-terminal run --host 0.0.0.0 --port 8000 --api-key %OPENTERMINAL_API_KEY%"
 
 :: stop the docker when completed
 docker compose down

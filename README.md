@@ -7,9 +7,25 @@ bla bla bla
 Set the following variables in a file named ".env" in this directory
 ~~~
 SANDBOX_NAME=
-API_KEY=
 WORKSPACE_PATH=
 ~~~
+Use
+~~~
+openssl rand -hex 32
+~~~
+To generate keys for 
+~~~
+LLAMACPP_API_KEY=
+OPENTERMINAL_API_KEY=
+LITELLM_MASTER_KEY=
+~~~
+Then fill in your provider keys for the following providers (available with a free account):
+~~~
+OPENROUTER_API_KEY=
+GOOGLE_AI_STUDIO_API_KEY=
+GROQ_API_KEY=
+~~~
+You will need to fill these key in for openwebui
 
 ## Windows Environment Setup Guide
 

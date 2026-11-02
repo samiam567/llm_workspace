@@ -17,6 +17,8 @@ services:
               count: 1
               capabilities: [gpu]
     command:
+      - "--api-key"
+      - "${LLAMACPP_API_KEY}"
       - "--models-dir"
       - "/models"
       - "--models-max"
@@ -28,7 +30,7 @@ services:
       - "--port"
       - "8080"
       - "--ctx-size"
-      - "64000"           # Lower context from 128k to 32k (or 16k) to fit the KV cache in 12GB VRAM
+      - "128000"           # Lower context from 128k to 32k (or 16k) to fit the KV cache in 12GB VRAM
       - "--n-gpu-layers"
       - "99"              # Keep attention layers on GPU
       - "--n-cpu-moe"
