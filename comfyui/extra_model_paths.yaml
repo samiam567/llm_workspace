@@ -1,0 +1,11 @@
+
+legacy_models:
+  base_path: /opt/storage/stable_diffusion/models
+  checkpoints: ckpt
+  text_encoders: clip
+  clip_vision: clip_vision
+  controlnet: controlnet
+  upscale_models: esrgan
+  loras: lora
+  diffusion_models: unet
+  vae: vae

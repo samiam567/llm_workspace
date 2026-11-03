@@ -1,3 +1,4 @@
+
 services:
   llamacpp:
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
@@ -22,30 +23,60 @@ services:
       - "--models-dir"
       - "/models"
       - "--models-max"
-      - "1"                  # Maximum number of models to keep loaded simultaneously in memory/VRAM
+      - "1"
       - "--timeout"
-      - "3600"               # Sets a 1-hour (3600 seconds) idle/inactivity timeout
+      - "3600"
       - "--host"
       - "0.0.0.0"
       - "--port"
       - "8080"
       - "--ctx-size"
-      - "128000"           # Lower context from 128k to 32k (or 16k) to fit the KV cache in 12GB VRAM
+      - "128000"
       - "--n-gpu-layers"
-      - "99"              # Keep attention layers on GPU
+      - "99"
       - "--n-cpu-moe"
-      - "26"              # Increase CPU MoE offload layers to 24 (or higher) to shift enough expert weight to system RAM so VRAM doesn't overflow
+      - "26"
       - "--flash-attn"
       - "on"
       - "--mmproj"
-      - "/models/mmproj-Ornith-1.5-9B-f16.gguf" # Vision projector file
+      - "/models/mmproj-Ornith-1.5-9B-f16.gguf"
       - "-ctk"
-      - "q4_0"            # Quantize the Key cache to save VRAM
+      - "q4_0"
       - "-ctv"
-      - "q4_0"            # Quantize the Value cache to save VRAM
+      - "q4_0"
       - "-np"
-      - "1"               # only fulfill one request at once
+      - "1"
 
+
+  comfyui:
+    image: local/comfyui:0.36.0
+    build:
+      context: ./comfyui
+      dockerfile: Dockerfile
+    container_name: comfyui
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8188:8188"
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+    volumes:
+      # Persistent workflows, input files, and generated images
+      - ./comfyui/workspace:/workspace
+
+      # Existing Stable Diffusion model library
+      - ./comfyui/workspace/storage/stable_diffusion/models:/opt/storage/stable_diffusion/models
+
+      # Qwen Image 2.1 model storage
+      - qwen_diffusion_models:/opt/ComfyUI/models/diffusion_models
+      - qwen_text_encoders:/opt/ComfyUI/models/text_encoders
+      - qwen_vae:/opt/ComfyUI/models/vae
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
 
   open-webui:
@@ -56,35 +87,37 @@ services:
       - "3000:8080"
     volumes:
       - open-webui_data:/app/backend/data
+    environment:
+      ENABLE_IMAGE_GENERATION: "true"
+      IMAGE_GENERATION_ENGINE: "comfyui"
+      COMFYUI_BASE_URL: "http://comfyui:8188/"
+      COMFYUI_API_KEY: ${COMFYUI_API_KEY}
     depends_on:
       - llamacpp
+      - comfyui
 
-
-  
-  litellm: # handles multiple requests to get past rate limits in openrouter
+  litellm:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: litellm
     restart: unless-stopped
-
     ports:
       - "127.0.0.1:4000:4000"
-
     volumes:
       - ./litellm/config.yaml:/app/config.yaml:ro
       - ./litellm/custom_callbacks.py:/app/custom_callbacks.py:ro
-
     env_file:
       - .env
-
     command:
       - "--config"
       - "/app/config.yaml"
       - "--port"
       - "4000"
-      # - "--detailed_debug"
     networks:
       - default
 
 
 volumes:
   open-webui_data:
+  qwen_diffusion_models:
+  qwen_text_encoders:
+  qwen_vae:
