@@ -69,3 +69,12 @@ Note: DO NOT install docker desktop when using Linux. This can cause issues.
 1. Authenticate your sandbox CLI by running:
    ```cmd
    sbx login
+
+
+# Configuration
+
+### OpenWebUI Access
+Go to [OpenWebUI](http://localhost:3000/) to configure the webui. This is the hub where you can control the entire repo.
+
+### ComfyUI Web Access
+Go to [ComfyUI Web Interface](http://localhost:8188/) to configure workflows and settings. Access the settings for the AutoFreeMemory plugin to configure ComfyUI to automatically unload image generation models
