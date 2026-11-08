@@ -76,5 +76,11 @@ Note: DO NOT install docker desktop when using Linux. This can cause issues.
 ### OpenWebUI Access
 Go to [OpenWebUI](http://localhost:3000/) to configure the webui. This is the hub where you can control the entire repo.
 
+use 
+~~~
+tailscale serve --bg 3000
+~~~
+to serve port the openwebui on tailscale to access it from other computers. You can access openwebui over tailscale through the url that shows up after running the command.
+
 ### ComfyUI Web Access
 Go to [ComfyUI Web Interface](http://localhost:8188/) to configure workflows and settings. Access the settings for the AutoFreeMemory plugin to configure ComfyUI to automatically unload image generation models

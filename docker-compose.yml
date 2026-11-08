@@ -8,6 +8,7 @@ services:
       - "11434:8080"
     volumes:
       - ./models:/models
+      - ./models.ini:/models.ini
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
     deploy:
@@ -20,8 +21,8 @@ services:
     command:
       - "--api-key"
       - "${LLAMACPP_API_KEY}"
-      - "--models-dir"
-      - "/models"
+      - "--models-preset"
+      - "/models.ini"
       - "--models-max"
       - "1"
       - "--timeout"
@@ -38,8 +39,6 @@ services:
       - "26"
       - "--flash-attn"
       - "on"
-      - "--mmproj"
-      - "/models/mmproj-Ornith-1.5-9B-f16.gguf"
       - "-ctk"
       - "q4_0"
       - "-ctv"
@@ -80,7 +79,7 @@ services:
 
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.12.5
+    image: ghcr.io/open-webui/open-webui:v0.13.0
     container_name: open-webui
     restart: unless-stopped
     ports:
