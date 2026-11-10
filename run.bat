@@ -34,7 +34,7 @@ if errorlevel 1 (
     echo All enabled sandboxes processed successfully.
 )
 
-echo.
+echo "Press Enter To Exit"
 pause
 
 docker compose down

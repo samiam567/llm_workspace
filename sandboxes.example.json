@@ -13,14 +13,14 @@
       "sandbox-workspace-folder": "./workspace_2",
       "sandbox-api-key": "YOUR_SECRET_KEY",
       "sandbox-port": 8001,
-      "enabled": false
+      "enabled": true
     },
     {
       "sandbox-name": "cad-workspace",
       "sandbox-workspace-folder": "./cad_workspace",
       "sandbox-api-key": "YOUR_SECRET_KEY_3",
       "sandbox-port": 8002,
-      "enabled": false
+      "enabled": true
     }
   ]
 }
