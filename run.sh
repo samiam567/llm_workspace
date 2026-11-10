@@ -42,4 +42,6 @@ fi
 echo
 read -r -p "Press Enter to exit..."
 
+docker compose down
+
 exit $EXIT_CODE
