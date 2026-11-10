@@ -4,4 +4,4 @@ models/
 opencode_workspace/
 comfyui/workspace/
 sandboxes.json
-*_workspace
+*workspace*/
