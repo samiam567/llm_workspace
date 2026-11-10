@@ -1,44 +1,45 @@
-#!/bin/bash
 
-# Exit immediately if a command exits with a non-zero status
-set -e
+#!/usr/bin/env bash
 
-# Create a default .env file if it doesn't exist
-if [ ! -f .env ]; then
-    echo ".env file not found. Creating a default .env file..."
-    cat << 'EOF' > .env
-    SANDBOX_NAME=llm-workspace
-    WORKSPACE_PATH=./workspace
-    OPENTERMINAL_API_KEY=your_actual_secret_key
-    EOF
-    echo "Default .env created successfully. Please update it with your actual settings if needed."
-    echo ""
+# OpenTerminal Multi-Sandbox Manager
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+echo "=========================================="
+echo "    OpenTerminal Multi-Sandbox Manager"
+echo "=========================================="
+echo
+
+# Check configuration
+if [[ ! -f "$SCRIPT_DIR/sandboxes.json" ]]; then
+    echo "ERROR: sandboxes.json not found!"
+    read -r -p "Press Enter to exit..."
+    exit 1
 fi
 
-# Load environment variables from .env file securely
-set -a
-source .env
-set +a
+# Check Linux manager
+if [[ ! -f "$SCRIPT_DIR/run-sandboxes.sh" ]]; then
+    echo "ERROR: run-sandboxes.sh not found!"
+    read -r -p "Press Enter to exit..."
+    exit 1
+fi
 
-# Start the docker compose
-docker compose up -d
+# Make manager executable if necessary
+chmod +x "$SCRIPT_DIR/run-sandboxes.sh"
 
-# Configure sandbox
-# Check if the sandbox name exists in the output of 'sbx list'
-if sbx list | grep -q "$SANDBOX_NAME"; then
-    echo "Sandbox '$SANDBOX_NAME' already exists. Skipping creation."
-    sbx start "$SANDBOX_NAME" >/dev/null 2>&1 || true
+# Launch manager
+"$SCRIPT_DIR/run-sandboxes.sh"
+EXIT_CODE=$?
+
+if [[ $EXIT_CODE -ne 0 ]]; then
+    echo
+    echo "ERROR: Sandbox manager encountered an error."
 else
-    echo "Sandbox '$SANDBOX_NAME' not found. Creating..."
-    sbx create --name "$SANDBOX_NAME" shell "$WORKSPACE_PATH"
-    sbx ports "$SANDBOX_NAME" --publish 0.0.0.0:4096:4096
-    sbx ports "$SANDBOX_NAME" --publish 0.0.0.0:8000:8000
-    sbx exec "$SANDBOX_NAME" bash -c "python3 -m pip install open-terminal --break-system-packages"
-    echo "Sandbox created successfully."
+    echo
+    echo "All enabled sandboxes processed successfully."
 fi
 
-# Run using the API_KEY loaded from the .env file
-sbx run --name "$SANDBOX_NAME" -- -c "open-terminal run --host 0.0.0.0 --port 8000 --api-key $OPENTERMINAL_API_KEY"
+echo
+read -r -p "Press Enter to exit..."
 
-# Stop the docker when completed
-docker compose down
+exit $EXIT_CODE

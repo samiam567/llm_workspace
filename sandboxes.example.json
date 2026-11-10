@@ -1,0 +1,26 @@
+
+{
+  "sandboxes": [
+    {
+      "sandbox-name": "llm-workspace",
+      "sandbox-workspace-folder": "./workspace",
+      "sandbox-api-key": "YOUR_SECRET_KEY",
+      "sandbox-port": 8000,
+      "enabled": true
+    },
+    {
+      "sandbox-name": "llm-workspace-2",
+      "sandbox-workspace-folder": "./workspace_2",
+      "sandbox-api-key": "YOUR_SECRET_KEY",
+      "sandbox-port": 8001,
+      "enabled": false
+    },
+    {
+      "sandbox-name": "cad-workspace",
+      "sandbox-workspace-folder": "./cad_workspace",
+      "sandbox-api-key": "YOUR_SECRET_KEY_3",
+      "sandbox-port": 8002,
+      "enabled": false
+    }
+  ]
+}
