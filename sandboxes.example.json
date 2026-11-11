@@ -13,6 +13,8 @@
       "sandbox-workspace-folder": "./workspace_2",
       "sandbox-api-key": "YOUR_SECRET_KEY",
       "sandbox-port": 8001,
+      "sandbox-root-size": "40g",
+      "sandbox-docker-size": "100g",
       "enabled": true
     },
     {

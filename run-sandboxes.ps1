@@ -125,7 +125,36 @@ foreach ($sandbox in $enabled) {
 
         Write-Host "Creating sandbox $name..." -ForegroundColor Yellow
 
+        # --------------------------------------------
+        # Optional sandbox disk configuration
+        # --------------------------------------------
+
+        $rootSize = $sandbox.'sandbox-root-size'
+        $dockerSize = $sandbox.'sandbox-docker-size'
+
+        # Set disk sizes only when specified
+        if (![string]::IsNullOrWhiteSpace($rootSize)) {
+            Write-Host "Root filesystem size: $rootSize" -ForegroundColor Cyan
+            $env:DOCKER_SANDBOXES_ROOT_SIZE = $rootSize
+        }
+
+        if (![string]::IsNullOrWhiteSpace($dockerSize)) {
+            Write-Host "Docker storage size: $dockerSize" -ForegroundColor Cyan
+            $env:DOCKER_SANDBOXES_DOCKER_SIZE = $dockerSize
+        }
+
+        # Create sandbox
         sbx create --name $name shell $workspace
+
+        # Clear environment variables to avoid affecting other sandboxes
+        Remove-Item Env:DOCKER_SANDBOXES_ROOT_SIZE -ErrorAction SilentlyContinue
+        Remove-Item Env:DOCKER_SANDBOXES_DOCKER_SIZE -ErrorAction SilentlyContinue
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Sandbox creation failed." -ForegroundColor Red
+            continue
+        }
+
 
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Sandbox creation failed." -ForegroundColor Red

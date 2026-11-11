@@ -171,7 +171,7 @@ sandboxes.json
 
 Edit `sandboxes.json` to configure your sandboxes.
 
-**Do not edit `sandboxes.example.json` directly.** Keep it as a reusable template.
+**Important:** Do not edit `sandboxes.example.json` directly. Keep it as a reusable template.
 
 ## Step 2: Configure your sandboxes
 
@@ -187,6 +187,8 @@ Example:
       "sandbox-workspace-folder": "./opencode_workspace",
       "sandbox-api-key": "YOUR_SECRET_KEY_1",
       "sandbox-port": 8000,
+      "sandbox-root-size": "40g",
+      "sandbox-docker-size": "100g",
       "enabled": true
     },
     {
@@ -201,6 +203,8 @@ Example:
       "sandbox-workspace-folder": "./cad_workspace",
       "sandbox-api-key": "YOUR_SECRET_KEY_3",
       "sandbox-port": 8002,
+      "sandbox-root-size": "30g",
+      "sandbox-docker-size": "50g",
       "enabled": false
     }
   ]
@@ -215,7 +219,62 @@ Example:
 | `sandbox-workspace-folder` | Workspace directory mounted into the sandbox. Relative paths are resolved from the repository directory. |
 | `sandbox-api-key` | Secret API key used to authenticate with OpenTerminal. |
 | `sandbox-port` | Unique host port used to access that sandbox's OpenTerminal instance. |
+| `sandbox-root-size` | Optional root filesystem disk allocation for the sandbox. |
+| `sandbox-docker-size` | Optional disk allocation for Docker storage inside the sandbox, including images, containers, volumes, and build cache. |
 | `enabled` | Controls whether the sandbox is processed by the startup script. |
+
+## Optional Disk Configuration
+
+Docker Sandboxes use separate storage allocations for the sandbox operating system and the Docker engine running inside the sandbox.
+
+The two optional properties allow you to configure these allocations independently.
+
+**`sandbox-root-size`**
+
+Controls the root filesystem allocation.
+
+This storage is used for:
+- Linux system files.
+- Installed packages and dependencies.
+- Applications and tools.
+- Other files stored outside mounted workspaces and Docker storage.
+
+**`sandbox-docker-size`**
+
+Controls the Docker storage allocation inside the sandbox.
+
+This storage is used for:
+- Downloaded Docker images.
+- Containers and their writable layers.
+- Docker volumes.
+- Image build cache.
+
+### Example disk configurations
+
+| Configuration | Root filesystem | Docker storage |
+|---|---:|---:|
+| Default | Default | Default |
+| Small sandbox | 20 GB | 20 GB |
+| Development sandbox | 40 GB | 50 GB |
+| Large development sandbox | 40 GB | 100 GB |
+| Heavy container development | 60 GB | 150 GB |
+
+Specify sizes using supported size units, such as `20g`, `40g`, or `100g`.
+
+Both properties are optional. If omitted, the manager does not override the corresponding default.
+
+**Important disk configuration rules:**
+
+- Disk sizes are applied only when a new sandbox is created.
+- Existing sandboxes are not automatically resized.
+- Changing either value in `sandboxes.json` does not modify an existing sandbox.
+- To apply new disk allocations, the sandbox must be recreated.
+- Ensure the host machine has sufficient available disk capacity.
+- Workspace folders mounted from the host use the host filesystem rather than the sandbox's root filesystem allocation.
+
+The Linux and Windows managers pass the configured disk sizes to the Docker Sandbox CLI through the `DOCKER_SANDBOXES_ROOT_SIZE` and `DOCKER_SANDBOXES_DOCKER_SIZE` environment variables.
+
+Verify that your installed Docker Sandbox CLI version supports these variables before relying on custom disk allocations.
 
 ### Important configuration rules
 
