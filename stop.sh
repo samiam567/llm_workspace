@@ -22,6 +22,7 @@ fi
 
 if ! tmux list-sessions >/dev/null 2>&1; then
     echo "No active tmux sessions found."
+    docker compose down
     exit 0
 fi
 
@@ -30,6 +31,7 @@ sessions=$(tmux list-sessions -F '#{session_name}' |
 
 if [[ -z "$sessions" ]]; then
     echo "No OpenTerminal sessions are running."
+    docker compose down
     exit 0
 fi
 

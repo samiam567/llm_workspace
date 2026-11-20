@@ -22,7 +22,10 @@
       "sandbox-workspace-folder": "./cad_workspace",
       "sandbox-api-key": "YOUR_SECRET_KEY_3",
       "sandbox-port": 8002,
-      "enabled": true
+      "enabled": true,
+      "sandbox-published-ports": [
+        "0.0.0.0:8765:8765"
+      ]
     }
   ]
 }
