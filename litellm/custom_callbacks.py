@@ -2,13 +2,17 @@
 from litellm.integrations.custom_logger import CustomLogger
 
 
+ACTUAL_MODEL_PREFIX = "owui_actual_model:"
+
+
 class RoutingLogger(CustomLogger):
 
     def __init__(self):
         super().__init__()
 
     def get_model_name(self, response, fallback="unknown"):
-        """Get the actual provider model from the response."""
+        """Read the model name from a LiteLLM response."""
+
         model = getattr(response, "model", None)
 
         if not model and isinstance(response, dict):
@@ -16,77 +20,54 @@ class RoutingLogger(CustomLogger):
 
         return model or fallback
 
-    def set_actual_model(self, response, model):
-        if not model:
-            return response
-
-        try:
-            if isinstance(response, dict):
-                response["model"] = model
-            elif hasattr(response, "model"):
-                response.model = model
-        except Exception as e:
-            print(f"[MODEL_NAME] Could not set model: {e}", flush=True)
-
-        return response
-
-    def prefix_response(self, response, model):
-        """Prefix the first assistant text response."""
+    def normalize_model_name(self, model):
+        """Remove the LiteLLM provider prefix for display."""
 
         if not model or model == "unknown":
-            print("[MODEL_PREFIX] No actual model name found", flush=True)
-            return response
+            return "unknown"
 
-        prefix = f"**_{model}:_**\n "
+        if model.startswith("openrouter/"):
+            model = model[len("openrouter/"):]
+
+        return model
+
+    def set_actual_model(self, chunk, model):
+        """
+        Attach the actual deployment to the streaming chunk.
+
+        model:
+            Standard OpenAI-compatible model field.
+
+        system_fingerprint:
+            Dedicated marker consumed by the Open WebUI filter.
+        """
+
+        model = self.normalize_model_name(model)
+
+        if model == "unknown":
+            return chunk
 
         try:
-            choices = (
-                response.get("choices", [])
-                if isinstance(response, dict)
-                else response.choices
-            )
+            fingerprint = f"{ACTUAL_MODEL_PREFIX}{model}"
 
-            if not choices:
-                return response
-
-            choice = choices[0]
-
-            message = (
-                choice.get("message", {})
-                if isinstance(choice, dict)
-                else choice.message
-            )
-
-            content = (
-                message.get("content")
-                if isinstance(message, dict)
-                else message.content
-            )
-
-            # Do not modify tool calls or non-text responses.
-            tool_calls = (
-                message.get("tool_calls")
-                if isinstance(message, dict)
-                else getattr(message, "tool_calls", None)
-            )
-
-            if tool_calls or not isinstance(content, str) or not content:
-                return response
-
-            if not content.startswith(prefix):
-                if isinstance(message, dict):
-                    message["content"] = prefix + content
-                else:
-                    message.content = prefix + content
-
-            print(f"[MODEL_PREFIX] Added prefix: {model}", flush=True)
+            if isinstance(chunk, dict):
+                chunk["model"] = model
+                chunk["system_fingerprint"] = fingerprint
+            else:
+                chunk.model = model
+                chunk.system_fingerprint = fingerprint
 
         except Exception as e:
-            print(f"[MODEL_PREFIX] Error: {e}", flush=True)
+            print(
+                f"[MODEL_NAME] Could not update chunk: {e}",
+                flush=True,
+            )
 
-        return response
+        return chunk
 
+    # Log selected deployment before each attempt
     async def async_pre_call_deployment_hook(self, kwargs, call_type):
+
         model = kwargs.get("model", "unknown")
 
         print(
@@ -97,91 +78,114 @@ class RoutingLogger(CustomLogger):
 
         return None
 
-    # PROXY HOOK: Non-streaming responses
-    async def async_post_call_success_hook(
-        self, data, user_api_key_dict, response
-    ):
-        model = self.get_model_name(response)
-
-        return self.prefix_response(response, model)
-
-    # PROXY HOOK: Streaming responses
-    async def async_post_call_streaming_iterator_hook(
-        self, user_api_key_dict, response, request_data
-    ):
-        prefixed = False
-
-        async for chunk in response:
-            if not prefixed:
-                model = self.get_model_name(chunk)
-
-                if model != "unknown":
-                    try:
-                        choices = (
-                            chunk.get("choices", [])
-                            if isinstance(chunk, dict)
-                            else chunk.choices
-                        )
-
-                        if choices:
-                            choice = choices[0]
-
-                            delta = (
-                                choice.get("delta", {})
-                                if isinstance(choice, dict)
-                                else choice.delta
-                            )
-
-                            content = (
-                                delta.get("content")
-                                if isinstance(delta, dict)
-                                else getattr(delta, "content", None)
-                            )
-
-                            if isinstance(content, str) and content:
-                                prefix = f"**_{model}:_**\n "
-
-                                if isinstance(delta, dict):
-                                    delta["content"] = prefix + content
-                                else:
-                                    delta.content = prefix + content
-
-                                prefixed = True
-
-                                print(
-                                    f"[MODEL_PREFIX] Streaming prefix: {model}",
-                                    flush=True,
-                                )
-
-                    except Exception as e:
-                        print(
-                            f"[MODEL_PREFIX] Stream error: {e}",
-                            flush=True,
-                        )
-
-            yield chunk
-
-    # Existing deployment success logging
+    # Successful deployment
     async def async_post_call_success_deployment_hook(
         self, request_data, response, call_type
     ):
-        model = request_data.get("model", "unknown")
 
-        # Preserve the full LiteLLM deployment name.
-        self.set_actual_model(response, model)
+        requested_model = request_data.get("model", "unknown")
+        response_model = self.get_model_name(response)
+
+        print(
+            f"[DEPLOYMENT_DEBUG] "
+            f"request_model={requested_model} "
+            f"response_model={response_model} "
+            f"request_keys={list(request_data.keys())}",
+            flush=True,
+        )
 
         green = "\033[92m"
         reset = "\033[0m"
 
         print(
-            f"[SUCCESS_RESULT] model={green}{model}{reset} "
+            f"[SUCCESS_RESULT] model={green}{requested_model}{reset} "
             f"call_type={call_type}",
             flush=True,
         )
 
         return response
 
-    # Existing failure logging
+    # Non-streaming response
+    async def async_post_call_success_hook(
+        self, data, user_api_key_dict, response
+    ):
+        return response
+
+    # Modify each deployment's streaming chunk
+    async def async_post_call_streaming_deployment_hook(
+        self,
+        request_data,
+        response_chunk,
+        call_type,
+    ):
+
+        # This is the actual deployment used for this attempt.
+        model = request_data.get("model", "unknown")
+
+        self.set_actual_model(response_chunk, model)
+
+        normalized_model = self.normalize_model_name(model)
+
+        print(
+            f"[STREAM_DEPLOYMENT_HOOK] "
+            f"actual_model={normalized_model} "
+            f"chunk_type={type(response_chunk).__name__}",
+            flush=True,
+        )
+
+        return response_chunk
+
+    # Final streaming iterator
+    async def async_post_call_streaming_iterator_hook(
+        self, user_api_key_dict, response, request_data
+    ):
+
+        # The upstream wrapper contains the selected provider model.
+        actual_model = self.normalize_model_name(
+            self.get_model_name(response)
+        )
+
+        print(
+            f"[STREAM_MODEL] Final stream model: {actual_model} "
+            f"wrapper={type(response).__name__}",
+            flush=True,
+        )
+
+        async for chunk in response:
+
+            if actual_model != "unknown":
+                self.set_actual_model(chunk, actual_model)
+
+            yield chunk
+
+    # Expose the model as an HTTP response header too
+    async def async_post_call_response_headers_hook(
+        self,
+        data,
+        user_api_key_dict,
+        response,
+        request_headers=None,
+    ):
+
+        model = self.normalize_model_name(
+            self.get_model_name(response)
+        )
+
+        if model == "unknown":
+            return {}
+
+        headers = {
+            "X-LiteLLM-Actual-Model": model
+        }
+
+        print(
+            f"[MODEL_HEADER_DEBUG] Returning headers: {headers}",
+            flush=True,
+        )
+
+        return headers
+
+    # Failure logging
     async def async_post_call_failure_deployment_hook(
         self,
         request_data,
@@ -189,6 +193,7 @@ class RoutingLogger(CustomLogger):
         call_type,
         fallback_depth=None,
     ):
+
         model = request_data.get("model", "unknown")
 
         error_type = type(exception).__name__

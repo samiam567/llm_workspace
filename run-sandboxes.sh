@@ -1,51 +1,78 @@
-```bash
+
 #!/usr/bin/env bash
 
 # ============================================
-# Multi-Sandbox OpenTerminal Manager
+# OpenTerminal Multi-Sandbox Manager
+# WSL2 / Native Ubuntu
+# Detached tmux sessions
 # ============================================
 
 set -uo pipefail
 
 # --------------------------------------------
-# Configuration paths
+# Configuration
 # --------------------------------------------
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="$SCRIPT_DIR/sandboxes.json"
+LOG_DIR="$SCRIPT_DIR/logs"
+
+mkdir -p "$LOG_DIR"
 
 # --------------------------------------------
-# Load and validate configuration
+# Helpers
 # --------------------------------------------
 
-if [[ ! -f "$CONFIG_FILE" ]]; then
-    echo "ERROR: sandboxes.json not found." >&2
+info() {
+    printf '\033[36m%s\033[0m\n' "$*"
+}
+
+success() {
+    printf '\033[32m%s\033[0m\n' "$*"
+}
+
+warning() {
+    printf '\033[33m%s\033[0m\n' "$*"
+}
+
+error() {
+    printf '\033[31mERROR: %s\033[0m\n' "$*" >&2
+}
+
+fail() {
+    error "$*"
     exit 1
-fi
+}
 
-if ! command -v jq >/dev/null 2>&1; then
-    echo "ERROR: jq is required. Install it with: sudo apt install jq" >&2
-    exit 1
-fi
+# --------------------------------------------
+# Dependencies
+# --------------------------------------------
 
-if ! jq empty "$CONFIG_FILE" 2>/dev/null; then
-    echo "ERROR: Invalid JSON configuration." >&2
-    exit 1
-fi
+for dependency in jq docker sbx tmux base64 realpath awk; do
+    command -v "$dependency" >/dev/null 2>&1 ||
+        fail "Missing dependency: $dependency"
+done
 
-sandbox_count=$(jq '.sandboxes // [] | length' "$CONFIG_FILE")
+docker info >/dev/null 2>&1 ||
+    fail "Docker daemon is unavailable."
 
-if [[ "$sandbox_count" -eq 0 ]]; then
-    echo "No sandboxes configured."
-    exit 0
-fi
+[[ -f "$CONFIG_FILE" ]] ||
+    fail "sandboxes.json not found."
 
-mapfile -t enabled < <(
-    jq -c '.sandboxes[] | select(.enabled == true)' "$CONFIG_FILE"
-)
+jq empty "$CONFIG_FILE" >/dev/null 2>&1 ||
+    fail "Invalid JSON in sandboxes.json."
 
-if [[ ${#enabled[@]} -eq 0 ]]; then
-    echo "No enabled sandboxes."
+jq -e '.sandboxes | type == "array"' "$CONFIG_FILE" >/dev/null ||
+    fail "Configuration must contain a sandboxes array."
+
+# --------------------------------------------
+# Enabled sandbox count
+# --------------------------------------------
+
+enabled_count=$(jq '[.sandboxes[] | select(.enabled == true)] | length' "$CONFIG_FILE")
+
+if [[ "$enabled_count" -eq 0 ]]; then
+    warning "No enabled sandboxes configured."
     exit 0
 fi
 
@@ -53,107 +80,110 @@ fi
 # Validate unique names and ports
 # --------------------------------------------
 
-duplicate_names=$(jq -r '
-    [.sandboxes[] | select(.enabled == true) | ."sandbox-name"]
-    | group_by(.)
-    | map(select(length > 1) | .[0])
-    | .[]
-' "$CONFIG_FILE")
+names=$(jq -c '[.sandboxes[] | select(.enabled == true) | ."sandbox-name"]' "$CONFIG_FILE")
+ports=$(jq -c '[.sandboxes[] | select(.enabled == true) | ."sandbox-port"]' "$CONFIG_FILE")
 
-duplicate_ports=$(jq -r '
-    [.sandboxes[] | select(.enabled == true) | ."sandbox-port"]
-    | group_by(.)
-    | map(select(length > 1) | .[0])
-    | .[]
-' "$CONFIG_FILE")
+[[ $(jq 'unique | length' <<< "$names") -eq "$enabled_count" ]] ||
+    fail "Duplicate sandbox names detected."
 
-if [[ -n "$duplicate_names" ]]; then
-    echo "ERROR: Duplicate sandbox names detected: $duplicate_names"
-    exit 1
-fi
-
-if [[ -n "$duplicate_ports" ]]; then
-    echo "ERROR: Duplicate OpenTerminal ports detected: $duplicate_ports"
-    exit 1
-fi
+[[ $(jq 'unique | length' <<< "$ports") -eq "$enabled_count" ]] ||
+    fail "Duplicate OpenTerminal ports detected."
 
 # --------------------------------------------
 # Start Docker Compose
 # --------------------------------------------
 
-echo
-echo "Starting Docker Compose..."
+info "Starting Docker Compose..."
 
-if ! (cd "$SCRIPT_DIR" && docker compose up -d); then
-    echo "ERROR: Docker Compose failed to start."
-    exit 1
-fi
+cd "$SCRIPT_DIR" || fail "Unable to enter project directory."
+
+docker compose up -d ||
+    fail "Docker Compose failed."
+
+success "Docker Compose is running."
 
 # --------------------------------------------
-# Process each sandbox
+# Start tmux server
 # --------------------------------------------
 
-for sandbox in "${enabled[@]}"; do
+tmux start-server 2>/dev/null || true
+
+# Keep panes available if OpenTerminal exits.
+tmux set-window-option -g remain-on-exit on
+
+# --------------------------------------------
+# Process enabled sandboxes
+# --------------------------------------------
+
+while IFS= read -r sandbox; do
 
     name=$(jq -r '."sandbox-name" // empty' <<< "$sandbox")
     workspace=$(jq -r '."sandbox-workspace-folder" // empty' <<< "$sandbox")
     api_key=$(jq -r '."sandbox-api-key" // empty' <<< "$sandbox")
     port=$(jq -r '."sandbox-port" // empty' <<< "$sandbox")
 
+    root_size=$(jq -r '."sandbox-root-size" // empty' <<< "$sandbox")
+    docker_size=$(jq -r '."sandbox-docker-size" // empty' <<< "$sandbox")
+
     echo
-    echo "========================================"
-    echo "Processing sandbox: $name"
+    echo "=========================================="
+    info "Processing sandbox: $name"
     echo "Workspace: $workspace"
-    echo "OpenTerminal port: $port"
-    echo "========================================"
+    echo "Port: $port"
+    echo "=========================================="
 
     # ----------------------------------------
-    # Validate required settings
+    # Validate configuration
     # ----------------------------------------
 
-    if [[ -z "$name" || -z "$workspace" || -z "$api_key" ||
-          "$api_key" == YOUR_SECRET* ]]; then
-
-        echo "Invalid configuration for $name. Skipping."
-        continue
-    fi
-
-    if ! [[ "$port" =~ ^[0-9]+$ ]] ||
+    if [[ -z "$name" ||
+          -z "$workspace" ||
+          -z "$api_key" ||
+          "$api_key" == YOUR_SECRET* ||
+          ! "$port" =~ ^[0-9]+$ ]] ||
        (( port < 1 || port > 65535 )); then
-        echo "Invalid port for $name. Skipping."
+
+        error "Invalid configuration for $name. Skipping."
+        continue
+    fi
+
+    if [[ ! "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        error "Invalid sandbox name: $name"
         continue
     fi
 
     # ----------------------------------------
-    # Resolve workspace path
+    # Resolve workspace
     # ----------------------------------------
 
     if [[ "$workspace" != /* ]]; then
         workspace="$SCRIPT_DIR/$workspace"
     fi
 
-    # Create workspace if missing
+    workspace=$(realpath -m "$workspace")
+
     if [[ ! -d "$workspace" ]]; then
-        mkdir -p "$workspace"
-        echo "Created workspace: $workspace"
+        mkdir -p "$workspace" ||
+            { error "Unable to create workspace."; continue; }
+
+        success "Created workspace: $workspace"
     fi
 
     # ----------------------------------------
-    # Check whether sandbox exists
+    # Check sandbox existence
     # ----------------------------------------
 
     if ! sandbox_list=$(sbx list 2>&1); then
-        echo "Unable to retrieve sandbox list."
-        echo "$sandbox_list"
+        error "Unable to retrieve sandbox list: $sandbox_list"
         continue
     fi
 
     exists=false
 
-    if awk -v n="$name" '
+    if awk -v name="$name" '
         {
             for (i = 1; i <= NF; i++) {
-                if ($i == n) found = 1
+                if ($i == name) found = 1
             }
         }
         END { exit !found }
@@ -167,105 +197,134 @@ for sandbox in "${enabled[@]}"; do
 
     if [[ "$exists" == false ]]; then
 
-        echo "Creating sandbox $name..."
+        warning "Creating sandbox: $name"
 
-        # Optional disk configuration
-        root_size=$(jq -r '."sandbox-root-size" // empty' <<< "$sandbox")
-        docker_size=$(jq -r '."sandbox-docker-size" // empty' <<< "$sandbox")
-
-        # Build environment arguments
-        env_args=()
+        create_args=()
 
         if [[ -n "$root_size" ]]; then
-            echo "Root filesystem size: $root_size"
-            env_args+=("DOCKER_SANDBOXES_ROOT_SIZE=$root_size")
+            create_args+=("DOCKER_SANDBOXES_ROOT_SIZE=$root_size")
         fi
 
         if [[ -n "$docker_size" ]]; then
-            echo "Docker storage size: $docker_size"
-            env_args+=("DOCKER_SANDBOXES_DOCKER_SIZE=$docker_size")
+            create_args+=("DOCKER_SANDBOXES_DOCKER_SIZE=$docker_size")
         fi
 
-        # Create sandbox
-        if ! env "${env_args[@]}" sbx create \
-            --name "$name" shell "$workspace"; then
-
-            echo "Sandbox creation failed."
-            continue
+        if [[ ${#create_args[@]} -gt 0 ]]; then
+            if ! env "${create_args[@]}" sbx create \
+                --name "$name" shell "$workspace"; then
+                error "Sandbox creation failed."
+                continue
+            fi
+        else
+            if ! sbx create --name "$name" shell "$workspace"; then
+                error "Sandbox creation failed."
+                continue
+            fi
         fi
 
-        # Publish ports
+        # Publish OpenTerminal port.
         if ! sbx ports "$name" --publish "0.0.0.0:$port:8000"; then
-            echo "Port configuration failed."
+            error "Port configuration failed."
             continue
         fi
 
-        echo "Installing OpenTerminal..."
+        # Install OpenTerminal.
+        warning "Installing OpenTerminal..."
 
         if ! sbx exec "$name" bash -c \
             "python3 -m pip install --upgrade open-terminal --break-system-packages"; then
-
-            echo "OpenTerminal installation failed."
+            error "OpenTerminal installation failed."
             continue
         fi
 
-        echo "Sandbox created successfully."
+        success "Sandbox created and OpenTerminal installed."
 
     else
-
-        echo "Sandbox '$name' already exists."
-        echo "It will be started automatically by sbx run."
-        echo "Existing port mappings are left unchanged."
-
+        success "Sandbox already exists: $name"
+        info "Preserving existing sandbox and port mappings."
     fi
 
     # ----------------------------------------
-    # Encode API key
+    # Construct launch command
     # ----------------------------------------
 
-    encoded_key=$(printf '%s' "$api_key" | base64 | tr -d '\n')
-
-    # ----------------------------------------
-    # Construct OpenTerminal launch command
-    # ----------------------------------------
+    # Base64 prevents API key characters from breaking shell quoting.
+    encoded_key=$(printf '%s' "$api_key" | base64 -w 0)
 
     terminal_command="KEY=\$(printf '%s' '$encoded_key' | base64 -d); exec open-terminal run --host 0.0.0.0 --port 8000 --api-key \"\$KEY\""
 
+    # Build safely quoted sbx command.
+    printf -v launch_command \
+        'exec sbx run --name %q -- bash -lc %q' \
+        "$name" "$terminal_command"
+
     # ----------------------------------------
-    # Launch OpenTerminal in separate window
+    # tmux session
     # ----------------------------------------
 
-    echo "Launching OpenTerminal for $name on port $port..."
+    session="openterminal-$name"
 
-    if command -v x-terminal-emulator >/dev/null 2>&1; then
+    if tmux has-session -t "=$session" 2>/dev/null; then
 
-        sbx_command=(sbx run --name "$name" -- -c "$terminal_command")
+        pane_dead=$(tmux display-message -p \
+            -t "=$session:0.0" '#{pane_dead}' 2>/dev/null || echo 1)
 
-        x-terminal-emulator -e "${sbx_command[@]}" &
+        if [[ "$pane_dead" == "1" ]]; then
+
+            warning "Restarting stopped OpenTerminal session: $name"
+
+            if ! tmux respawn-pane -k \
+                -t "=$session:0.0" "$launch_command"; then
+                error "Unable to restart session: $session"
+                continue
+            fi
+
+        else
+            success "OpenTerminal already running: $name"
+            info "Session: $session"
+            continue
+        fi
 
     else
 
-        echo "WARNING: No graphical terminal emulator found."
-        echo "Launching in background instead."
+        info "Creating tmux session: $session"
 
-        log_file="$SCRIPT_DIR/${name}.log"
+        if ! tmux new-session -d \
+            -s "$session" \
+            -n openterminal \
+            "$launch_command"; then
 
-        sbx run --name "$name" -- -c "$terminal_command" \
-            > "$log_file" 2>&1 &
-
-        echo "Log file: $log_file"
+            error "Unable to create tmux session: $session"
+            continue
+        fi
 
     fi
 
-done
+    success "OpenTerminal session started."
+    info "Session: $session"
+    info "Endpoint: http://localhost:$port"
+
+done < <(jq -c '.sandboxes[] | select(.enabled == true)' "$CONFIG_FILE")
 
 # --------------------------------------------
-# Finished
+# Summary
 # --------------------------------------------
 
 echo
-echo "========================================"
-echo "Sandbox manager finished."
-echo "Enabled sandboxes: ${#enabled[@]}"
-echo "========================================"
-```
+echo "=========================================="
+success "Sandbox manager finished."
+echo "Enabled sandboxes: $enabled_count"
+echo "=========================================="
+
+echo
+info "OpenTerminal tmux sessions:"
+
+tmux list-sessions -F '#{session_name}' 2>/dev/null |
+    grep '^openterminal-' || true
+
+echo
+info "Attach to a session:"
+echo "tmux attach -t openterminal-SANDBOX_NAME"
+
+echo
+info "Detach without stopping it: Ctrl+B, then D"

@@ -58,35 +58,7 @@ See [Section 4: Sandbox Configuration](#4-sandbox-configuration).
 
 # 2. Windows Environment Setup
 
-Follow these steps to install Docker Desktop and Docker Sandboxes (`sbx`) on Windows.
-
-## Step 1: Install Docker Desktop
-
-1. Visit the official [Docker Desktop for Windows Installation Guide](https://docs.docker.com/desktop/setup/install/windows-install/).
-2. Download and run the installer.
-3. Ensure WSL 2 support is enabled.
-4. Restart your computer if required.
-5. Start Docker Desktop before proceeding.
-
-## Step 2: Install Docker Sandboxes (`sbx`)
-
-1. Review the official [Docker Sandboxes documentation](https://docs.docker.com/ai/sandboxes/install/).
-2. Install the `sbx` CLI following the instructions for your environment.
-3. Verify that the CLI is available:
-
-```powershell
-sbx --help
-```
-
-## Step 3: Authenticate
-
-Authenticate your sandbox CLI:
-
-```powershell
-sbx login
-```
-
-Verify that Docker and the sandbox CLI are working before continuing.
+Windows is not recommended due to filesystem discrepancies. Install wsl and follow the linux setup.
 
 ---
 
@@ -297,33 +269,15 @@ For example:
 
 # 5. Starting and Managing Sandboxes
 
-The repository includes separate startup scripts for Windows and Linux.
-
-```text
-run.bat
-run-sandboxes.ps1
-
+Start the sandboxes and docker:
+~~~
 run.sh
-run-sandboxes.sh
-```
+~~~
 
-Both platforms use the same `sandboxes.json` configuration format.
-
-## Windows
-
-Double-click:
-
-```text
-run.bat
-```
-
-Alternatively, run the PowerShell manager directly:
-
-```powershell
-.\run-sandboxes.ps1
-```
-
-The batch launcher checks that the configuration and PowerShell manager exist, then launches the manager.
+Stop the sandboxes and docker containers:
+~~~
+stop.sh
+~~~
 
 ## Linux
 
@@ -337,12 +291,6 @@ Then run:
 
 ```bash
 ./run.sh
-```
-
-Alternatively, run the Bash manager directly:
-
-```bash
-./run-sandboxes.sh
 ```
 
 The Bash launcher checks that the configuration and manager script exist, then launches the manager.

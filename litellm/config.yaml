@@ -15,11 +15,11 @@ model_list:
         ServiceUnavailableErrorAllowedFails: 0
       cooldown_time: 60
 
-  # PRIORITY 2 — Google Gemini 3.6 Flash
+  # PRIORITY 2: gemini 3.8 - api key 2
   - model_name: coding-free
     litellm_params:
-      model: gemini/gemini-3.6-flash
-      api_key: os.environ/GOOGLE_AI_STUDIO_API_KEY
+      model: gemini/gemini-3.8-flash
+      api_key: os.environ/GOOGLE_AI_STUDIO_API_KEY_2
       rpm: 5
       rpd: 20
       order: 2
@@ -30,57 +30,14 @@ model_list:
         ServiceUnavailableErrorAllowedFails: 0
       cooldown_time: 60
 
-  # PRIORITY 3 — Groq GPT-OSS 120B
+  # PRIORITY 3: gemini 3.8 api key 3
   - model_name: coding-free
     litellm_params:
-      model: groq/openai/gpt-oss-120b
-      api_key: os.environ/GROQ_API_KEY
-      rpm: 25
-      tpm: 7000
+      model: gemini/gemini-3.8-flash
+      api_key: os.environ/GOOGLE_AI_STUDIO_API_KEY_3
+      rpm: 5
+      rpd: 20
       order: 3
-    model_info:
-      allowed_fails_policy:
-        RateLimitErrorAllowedFails: 0
-        ServiceUnavailableErrorAllowedFails: 0
-      cooldown_time: 60
-
-  # PRIORITY 4 — Groq Qwen 3.8 27B
-  - model_name: coding-free
-    litellm_params:
-      model: groq/qwen/qwen3.8-27b
-      api_key: os.environ/GROQ_API_KEY
-      rpm: 25
-      tpm: 7000
-      order: 4
-    model_info:
-      allowed_fails_policy:
-        RateLimitErrorAllowedFails: 0
-        ServiceUnavailableErrorAllowedFails: 0
-      cooldown_time: 60
-
-  # PRIORITY 5 — OpenRouter Nemotron 3.5 Super VL
-  - model_name: coding-free
-    litellm_params:
-      model: openrouter/nvidia/nemotron-3.5-super-vl:free
-      api_key: os.environ/OPENROUTER_API_KEY
-      rpm: 18
-      rpd: 1000
-      order: 5
-      daily_reset_time: "00:00"
-    model_info:
-      allowed_fails_policy:
-        RateLimitErrorAllowedFails: 0
-        ServiceUnavailableErrorAllowedFails: 0
-      cooldown_time: 60
-
-  # PRIORITY 6 — Google Gemma 4 31B
-  - model_name: coding-free
-    litellm_params:
-      model: gemini/gemma-4-31b-it
-      api_key: os.environ/GOOGLE_AI_STUDIO_API_KEY
-      rpm: 15
-      rpd: 500
-      order: 6
       daily_reset_time: "07:00"
     model_info:
       allowed_fails_policy:
@@ -88,13 +45,52 @@ model_list:
         ServiceUnavailableErrorAllowedFails: 0
       cooldown_time: 60
 
-  # PRIORITY 7 — Google Gemini 3.5 Flash-Lite
+  # PRIORITY 4 — ChatGPT Subscription
   - model_name: coding-free
     litellm_params:
-      model: gemini/gemini-3.5-flash-lite
-      api_key: os.environ/GOOGLE_AI_STUDIO_API_KEY
+      model: chatgpt/gpt-6-luna
       rpm: 15
-      rpd: 500
+      order: 4
+    model_info:
+      mode: responses
+
+  # PRIORITY 5 — Google Gemini 3.6 Flash
+  - model_name: coding-free
+    litellm_params:
+      model: gemini/gemini-3.6-flash
+      api_key: os.environ/GOOGLE_AI_STUDIO_API_KEY
+      rpm: 5
+      rpd: 20
+      order: 5
+      daily_reset_time: "07:00"
+    model_info:
+      allowed_fails_policy:
+        RateLimitErrorAllowedFails: 0
+        ServiceUnavailableErrorAllowedFails: 0
+      cooldown_time: 60
+
+  # PRIORITY 6 — Google Gemini 3.6 Flash - key 2
+  - model_name: coding-free
+    litellm_params:
+      model: gemini/gemini-3.6-flash
+      api_key: os.environ/GOOGLE_AI_STUDIO_API_KEY_2
+      rpm: 5
+      rpd: 20
+      order: 6
+      daily_reset_time: "07:00"
+    model_info:
+      allowed_fails_policy:
+        RateLimitErrorAllowedFails: 0
+        ServiceUnavailableErrorAllowedFails: 0
+      cooldown_time: 60
+  
+  # PRIORITY 7 — Google Gemini 3.6 Flash - key 3
+  - model_name: coding-free
+    litellm_params:
+      model: gemini/gemini-3.6-flash
+      api_key: os.environ/GOOGLE_AI_STUDIO_API_KEY_3
+      rpm: 7
+      rpd: 20
       order: 7
       daily_reset_time: "07:00"
     model_info:
@@ -103,10 +99,10 @@ model_list:
         ServiceUnavailableErrorAllowedFails: 0
       cooldown_time: 60
 
-  # PRIORITY 8 — Groq GPT-OSS 20B
+  # PRIORITY 8 — Groq GPT-OSS 120B
   - model_name: coding-free
     litellm_params:
-      model: groq/openai/gpt-oss-20b
+      model: groq/openai/gpt-oss-120b
       api_key: os.environ/GROQ_API_KEY
       rpm: 25
       tpm: 7000
@@ -117,14 +113,45 @@ model_list:
         ServiceUnavailableErrorAllowedFails: 0
       cooldown_time: 60
 
-  # PRIORITY 9 — Google Gemini 3.1 Flash-Lite
+  # PRIORITY 9 — Groq Qwen 3.8 27B
   - model_name: coding-free
     litellm_params:
-      model: gemini/gemini-3.1-flash-lite
+      model: groq/qwen/qwen3.8-27b
+      api_key: os.environ/GROQ_API_KEY
+      rpm: 25
+      tpm: 7000
+      order: 9
+    model_info:
+      allowed_fails_policy:
+        RateLimitErrorAllowedFails: 0
+        ServiceUnavailableErrorAllowedFails: 0
+      cooldown_time: 60
+
+
+  # PRIORITY 10 — OpenRouter Nemotron 3.5 Super VL
+  - model_name: coding-free
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3.5-super-vl:free
+      api_key: os.environ/OPENROUTER_API_KEY
+      rpm: 18
+      rpd: 1000
+      order: 10
+      daily_reset_time: "00:00"
+    model_info:
+      allowed_fails_policy:
+        BadRequestErrorAllowedFails: 0
+        RateLimitErrorAllowedFails: 0
+        ServiceUnavailableErrorAllowedFails: 0
+      cooldown_time: 60
+
+  # PRIORITY 11 — Google Gemma 4 31B
+  - model_name: coding-free
+    litellm_params:
+      model: gemini/gemma-4-31b-it
       api_key: os.environ/GOOGLE_AI_STUDIO_API_KEY
       rpm: 15
       rpd: 500
-      order: 9
+      order: 11
       daily_reset_time: "07:00"
     model_info:
       allowed_fails_policy:
@@ -132,6 +159,118 @@ model_list:
         ServiceUnavailableErrorAllowedFails: 0
       cooldown_time: 60
 
+  # PRIORITY 12 — Google Gemini 3.5 Flash-Lite
+  - model_name: coding-free
+    litellm_params:
+      model: gemini/gemini-3.5-flash-lite
+      api_key: os.environ/GOOGLE_AI_STUDIO_API_KEY
+      rpm: 15
+      rpd: 500
+      order: 12
+      daily_reset_time: "07:00"
+    model_info:
+      allowed_fails_policy:
+        RateLimitErrorAllowedFails: 0
+        ServiceUnavailableErrorAllowedFails: 0
+      cooldown_time: 60
+
+  # PRIORITY 13 — Groq GPT-OSS 20B
+  - model_name: coding-free
+    litellm_params:
+      model: groq/openai/gpt-oss-20b
+      api_key: os.environ/GROQ_API_KEY
+      rpm: 25
+      tpm: 7000
+      order: 13
+    model_info:
+      allowed_fails_policy:
+        RateLimitErrorAllowedFails: 0
+        ServiceUnavailableErrorAllowedFails: 0
+      cooldown_time: 60
+
+  # PRIORITY 14 — Google Gemini 3.1 Flash-Lite
+  - model_name: coding-free
+    litellm_params:
+      model: gemini/gemini-3.1-flash-lite
+      api_key: os.environ/GOOGLE_AI_STUDIO_API_KEY
+      rpm: 15
+      rpd: 500
+      order: 14
+      daily_reset_time: "07:00"
+    model_info:
+      allowed_fails_policy:
+        RateLimitErrorAllowedFails: 0
+        ServiceUnavailableErrorAllowedFails: 0
+      cooldown_time: 60
+
+
+
+  # nemotron specific model
+  - model_name: nemotron-super-vl
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3.5-super-vl:free
+      api_key: os.environ/OPENROUTER_API_KEY
+      rpm: 18
+      rpd: 1000
+      daily_reset_time: "00:00"
+    model_info:
+      allowed_fails_policy:
+        BadRequestErrorAllowedFails: 0
+        RateLimitErrorAllowedFails: 0
+        ServiceUnavailableErrorAllowedFails: 0
+      cooldown_time: 60
+  
+
+  - model_name: qwen-flash-next
+    litellm_params:
+      model: openai/qwen3.8-flash-next
+      api_base: "https://ptcai.tail8ac1e3.ts.net/v1"
+      api_key: "not-needed"
+      order: 1
+    model_info:
+      allowed_fails_policy:
+        RateLimitErrorAllowedFails: 3
+        ServiceUnavailableErrorAllowedFails: 10
+      cooldown_time: 60
+      max_input_tokens: 200000
+      max_output_tokens: 56000
+
+  - model_name: qwen-flash-next
+    litellm_params:
+      model: openai/Bonsai-2-27B
+      api_base: "http://llamacpp:8080/v1"
+      api_key: os.environ/LLAMACPP_API_KEY
+      order: 2
+    model_info:
+      allowed_fails_policy:
+        RateLimitErrorAllowedFails: 3
+        ServiceUnavailableErrorAllowedFails: 10
+      cooldown_time: 60
+      max_input_tokens: 100000
+      max_output_tokens: 28000
+
+  - model_name: ltllm.Bonsai-2-27B
+    litellm_params:
+      model: openai/Bonsai-2-27B
+      api_base: "http://llamacpp:8080/v1"
+      api_key: os.environ/LLAMACPP_API_KEY
+    model_info:
+      allowed_fails_policy:
+        RateLimitErrorAllowedFails: 3
+        ServiceUnavailableErrorAllowedFails: 10
+      cooldown_time: 60
+      max_input_tokens: 128000
+      max_output_tokens: 25000
+
+  - model_name: gpt-6-luna
+    litellm_params:
+      model: chatgpt/gpt-6-luna
+      rpm: 15
+    model_info:
+      allowed_fails_policy:
+        RateLimitErrorAllowedFails: 3
+        ServiceUnavailableErrorAllowedFails: 10
+      mode: responses
 
 litellm_settings:
   num_retries: 0
