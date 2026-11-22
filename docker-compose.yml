@@ -2,6 +2,7 @@
 services:
   llamacpp:
     image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    # image: local/llama.cpp:server-cuda-inkling
     container_name: llamacpp-server
     restart: unless-stopped
     ports:
@@ -39,6 +40,7 @@ services:
       - "q4_0"
       - "-np"
       - "1"
+      - "--metrics"
 
 
   comfyui:
