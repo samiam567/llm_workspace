@@ -15,7 +15,9 @@
       "sandbox-port": 8001,
       "sandbox-root-size": "40g",
       "sandbox-docker-size": "100g",
-      "enabled": true
+      "enabled": true,
+      "gui-enabled": true,
+      "gui-port": 6080
     },
     {
       "sandbox-name": "cad-workspace",
@@ -25,7 +27,11 @@
       "enabled": true,
       "sandbox-published-ports": [
         "0.0.0.0:8765:8765"
-      ]
+      ],
+      "gui-enabled": true,
+      "gui-host": "127.0.0.1",
+      "gui-password": "change-me-strong-password",
+      "gui-port": 6081
     }
   ]
 }

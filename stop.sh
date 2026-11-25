@@ -1,37 +1,43 @@
-
 #!/usr/bin/env bash
 
 # ============================================
-# Stop All OpenTerminal Sessions
+# Stop All OpenTerminal & GUI Sessions
 # WSL2 / Native Ubuntu
 # ============================================
 
 set -uo pipefail
 
-PREFIX="openterminal-"
+PREFIXES=("openterminal-" "gui-")
 
 echo "=========================================="
-echo "    Stopping OpenTerminal Sessions"
+echo "    Stopping OpenTerminal & GUI Sessions"
 echo "=========================================="
 echo
 
 if ! command -v tmux >/dev/null 2>&1; then
-    echo "ERROR: tmux is not installed."
+    echo "ERROR: tmux is not installed." >&2
     exit 1
 fi
 
 if ! tmux list-sessions >/dev/null 2>&1; then
     echo "No active tmux sessions found."
-    docker compose down
     exit 0
 fi
 
-sessions=$(tmux list-sessions -F '#{session_name}' |
-    grep "^${PREFIX}" || true)
+all_sessions=$(tmux list-sessions -F '#{session_name}' 2>/dev/null || true)
 
-if [[ -z "$sessions" ]]; then
-    echo "No OpenTerminal sessions are running."
-    docker compose down
+matching_sessions=""
+for prefix in "${PREFIXES[@]}"; do
+    found=$(printf '%s\n' "$all_sessions" | grep "^${prefix}" || true)
+    if [[ -n "$found" ]]; then
+        matching_sessions="${matching_sessions}${found}"$'\n'
+    fi
+done
+
+matching_sessions=$(printf '%s' "$matching_sessions" | sed '/^$/d' | sort -u || true)
+
+if [[ -z "$matching_sessions" ]]; then
+    echo "No OpenTerminal or GUI sessions are running."
     exit 0
 fi
 
@@ -43,15 +49,13 @@ while IFS= read -r session; do
     if tmux kill-session -t "=$session"; then
         echo "Stopped: $session"
     else
-        echo "WARNING: Could not stop $session"
+        echo "WARNING: Could not stop $session" >&2
     fi
 
-done <<< "$sessions"
-
-docker compose down
+done <<< "$matching_sessions"
 
 echo
 echo "=========================================="
-echo "All OpenTerminal sessions stopped."
+echo "All OpenTerminal and GUI sessions stopped."
 echo "Sandboxes and Docker containers preserved."
 echo "=========================================="

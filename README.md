@@ -164,6 +164,18 @@ Example:
       "enabled": true
     },
     {
+      "sandbox-name": "llm-workspace-2",
+      "sandbox-workspace-folder": "./workspace_2",
+      "sandbox-api-key": "YOUR_SECRET_KEY",
+      "sandbox-port": 8001,
+      "sandbox-root-size": "40g",
+      "sandbox-docker-size": "100g",
+      "enabled": true,
+      "gui-enabled": true,
+      "gui-port": 6080,
+      "gui-password": "change-me-strong-password"
+    },
+    {
       "sandbox-name": "coding-workspace",
       "sandbox-workspace-folder": "./coding_workspace",
       "sandbox-api-key": "YOUR_SECRET_KEY_2",
@@ -278,6 +290,15 @@ Stop the sandboxes and docker containers:
 ~~~
 stop.sh
 ~~~
+
+## IMPORTANT:
+The first time running the run.sh script may fail if you have "gui-enabled": true. This is because you need to allow security.debian.org (or more) through the sandbox policy.
+
+Run
+~~~
+sbx
+~~~
+and create an allow rule for any blocked sites to allow the install to work properly.
 
 ## Linux
 

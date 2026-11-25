@@ -127,8 +127,8 @@ services:
       - "/models.ini"
       - "--models-max"
       - "3"
-      - "--timeout"
-      - "3600"
+      # - "--timeout"
+      # - "3600"
       - "--host"
       - "0.0.0.0"
       - "--port"
@@ -268,7 +268,7 @@ services:
               capabilities: [gpu]
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.13.4
+    image: ghcr.io/open-webui/open-webui:v0.13.5
     container_name: open-webui
     restart: unless-stopped
     ports:
@@ -280,6 +280,7 @@ services:
       IMAGE_GENERATION_ENGINE: "comfyui"
       COMFYUI_BASE_URL: "http://comfyui:8188/"
       COMFYUI_API_KEY: ${COMFYUI_API_KEY}
+      TZ: America/New_York
     depends_on:
       - llamacpp
       - comfyui

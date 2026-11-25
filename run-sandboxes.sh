@@ -1,11 +1,10 @@
-
 #!/usr/bin/env bash
 
 # ============================================
 # OpenTerminal Multi-Sandbox Manager
 # WSL2 / Native Ubuntu
 # Detached tmux sessions
-# Configurable sandbox port publishing
+# Configurable sandbox port publishing & GUI
 # ============================================
 
 set -uo pipefail
@@ -105,6 +104,47 @@ port_is_published() {
         <<< "$existing_ports"
 }
 
+# Install TigerVNC (Xvnc) + XFCE + noVNC inside a sandbox using sudo/root.
+install_gui_stack() {
+    local target_name="$1"
+    local setup_cmd='
+        set -e
+        rm -f /etc/apt/sources.list.d/sbx-gui-trixie.list /etc/apt/preferences.d/99-prefer-dhi-fallback-debian
+        cat <<EOF >/etc/apt/sources.list.d/sbx-gui-trixie.list
+deb http://deb.debian.org/debian trixie main
+deb http://security.debian.org/debian-security trixie-security main
+EOF
+        cat <<EOF >/etc/apt/preferences.d/99-prefer-dhi-fallback-debian
+Package: *
+Pin: origin dhi.io
+Pin-Priority: 990
+
+Package: *
+Pin: origin deb.debian.org
+Pin-Priority: 500
+
+Package: *
+Pin: origin security.debian.org
+Pin-Priority: 500
+EOF
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            tigervnc-standalone-server tigervnc-tools xfce4 xfce4-terminal novnc websockify dbus-x11 x11-apps
+    '
+
+    sbx exec "$target_name" bash -c "
+        if command -v sudo >/dev/null 2>&1; then
+            sudo sh -c '$setup_cmd'
+        elif [ \"\$(id -u)\" -eq 0 ]; then
+            sh -c '$setup_cmd'
+        else
+            echo 'No sudo or root privileges available inside sandbox' >&2
+            exit 1
+        fi
+    "
+}
+
 # --------------------------------------------
 # Dependencies
 # --------------------------------------------
@@ -138,7 +178,7 @@ if [[ "$enabled_count" -eq 0 ]]; then
 fi
 
 # --------------------------------------------
-# Validate unique names and OpenTerminal ports
+# Validate unique names, OpenTerminal ports, and GUI bindings
 # --------------------------------------------
 
 names=$(jq -c '[.sandboxes[] | select(.enabled == true) | ."sandbox-name"]' "$CONFIG_FILE")
@@ -149,6 +189,19 @@ ports=$(jq -c '[.sandboxes[] | select(.enabled == true) | ."sandbox-port"]' "$CO
 
 [[ $(jq 'unique | length' <<< "$ports") -eq "$enabled_count" ]] ||
     fail "Duplicate OpenTerminal ports detected."
+
+gui_bindings=$(jq -c '
+    [
+      .sandboxes[]
+      | select(.enabled == true)
+      | select((."gui-enabled" // ."gui" // false) == true)
+      | ((."gui-host" // ."gui-bind" // "127.0.0.1") + ":" + ((."gui-port" // 6080) | tostring))
+    ]
+' "$CONFIG_FILE")
+gui_bindings_count=$(jq 'length' <<< "$gui_bindings")
+
+[[ $(jq 'unique | length' <<< "$gui_bindings") -eq "$gui_bindings_count" ]] ||
+    fail "Duplicate GUI host:port bindings detected across enabled GUI sandboxes."
 
 # --------------------------------------------
 # Start Docker Compose
@@ -175,21 +228,40 @@ tmux set-window-option -g remain-on-exit on
 # Process enabled sandboxes
 # --------------------------------------------
 
-while IFS= read -r sandbox; do
+mapfile -t sandboxes < <(jq -c '.sandboxes[] | select(.enabled == true)' "$CONFIG_FILE")
+
+for sandbox in "${sandboxes[@]}"; do
 
     name=$(jq -r '."sandbox-name" // empty' <<< "$sandbox")
     workspace=$(jq -r '."sandbox-workspace-folder" // empty' <<< "$sandbox")
     api_key=$(jq -r '."sandbox-api-key" // empty' <<< "$sandbox")
     port=$(jq -r '."sandbox-port" // empty' <<< "$sandbox")
+    gui_enabled=$(jq -r '(."gui-enabled" // ."gui" // false)' <<< "$sandbox")
+    gui_host=$(jq -r '(."gui-host" // ."gui-bind" // "127.0.0.1")' <<< "$sandbox")
+    gui_port=$(jq -r '."gui-port" // empty' <<< "$sandbox")
+    gui_password=$(jq -r '."gui-password" // empty' <<< "$sandbox")
 
     root_size=$(jq -r '."sandbox-root-size" // empty' <<< "$sandbox")
     docker_size=$(jq -r '."sandbox-docker-size" // empty' <<< "$sandbox")
+
+    if [[ "$gui_enabled" == "true" && -z "$gui_port" ]]; then
+        gui_port="6080"
+    fi
 
     echo
     echo "=========================================="
     info "Processing sandbox: $name"
     echo "Workspace: $workspace"
     echo "OpenTerminal host port: $port"
+    echo "GUI enabled: $gui_enabled"
+    if [[ "$gui_enabled" == "true" ]]; then
+        echo "GUI (noVNC) bind: $gui_host:$gui_port"
+        if [[ -n "$gui_password" ]]; then
+            echo "GUI password: configured"
+        else
+            echo "GUI password: none"
+        fi
+    fi
     echo "=========================================="
 
     # ----------------------------------------
@@ -209,6 +281,22 @@ while IFS= read -r sandbox; do
     if [[ ! "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
         error "Invalid sandbox name: $name"
         continue
+    fi
+
+    if [[ "$gui_enabled" != "true" && "$gui_enabled" != "false" ]]; then
+        error "Invalid gui flag for $name (must be true or false). Skipping."
+        continue
+    fi
+
+    if [[ "$gui_enabled" == "true" ]]; then
+        if ! valid_ipv4 "$gui_host"; then
+            error "Invalid gui-host ($gui_host) for $name. Skipping."
+            continue
+        fi
+        if ! valid_port "$gui_port"; then
+            error "Invalid gui-port ($gui_port) for $name. Skipping."
+            continue
+        fi
     fi
 
     # ----------------------------------------
@@ -281,19 +369,42 @@ while IFS= read -r sandbox; do
             fi
         fi
 
-        # Install OpenTerminal.
-        warning "Installing OpenTerminal..."
-
-        if ! sbx exec "$name" bash -c \
-            "python3 -m pip install --upgrade open-terminal --break-system-packages"; then
-            error "OpenTerminal installation failed."
-            continue
-        fi
-
-        success "Sandbox created and OpenTerminal installed."
+        success "Sandbox created: $name"
 
     else
         success "Sandbox already exists: $name"
+    fi
+
+    # ----------------------------------------
+    # Install GUI stack if enabled (new or existing)
+    # ----------------------------------------
+
+    if [[ "$gui_enabled" == "true" ]]; then
+        if ! sbx exec "$name" bash -c \
+            "command -v Xvnc >/dev/null 2>&1 && command -v vncpasswd >/dev/null 2>&1 && command -v websockify >/dev/null 2>&1 && command -v startxfce4 >/dev/null 2>&1"; then
+            warning "Installing GUI desktop and noVNC stack for $name..."
+            if ! install_gui_stack "$name"; then
+                error "GUI stack installation failed for $name."
+                continue
+            fi
+            success "GUI stack installed for $name."
+        else
+            info "GUI stack already installed for $name."
+        fi
+    fi
+
+    # ----------------------------------------
+    # Ensure OpenTerminal is installed
+    # ----------------------------------------
+
+    if ! sbx exec "$name" bash -c "command -v open-terminal >/dev/null 2>&1"; then
+        warning "Installing OpenTerminal for $name..."
+        if ! sbx exec "$name" bash -c \
+            "python3 -m pip install --upgrade open-terminal --break-system-packages"; then
+            error "OpenTerminal installation failed for $name."
+            continue
+        fi
+        success "OpenTerminal installed for $name."
     fi
 
     # ----------------------------------------
@@ -304,6 +415,12 @@ while IFS= read -r sandbox; do
     publish_ports=(
         "0.0.0.0:$port:8000"
     )
+
+    if [[ "$gui_enabled" == "true" ]]; then
+        publish_ports+=(
+            "$gui_host:$gui_port:6080"
+        )
+    fi
 
     # Read additional configured mappings.
     if ! jq -e '
@@ -358,7 +475,6 @@ while IFS= read -r sandbox; do
         continue
     fi
 
-   
     # ----------------------------------------
     # Apply port configuration (idempotent)
     # ----------------------------------------
@@ -400,9 +516,8 @@ while IFS= read -r sandbox; do
 
     success "Port configuration applied."
 
-
     # ----------------------------------------
-    # Construct launch command
+    # Construct OpenTerminal launch command
     # ----------------------------------------
 
     encoded_key=$(printf '%s' "$api_key" | base64 -w 0)
@@ -414,7 +529,7 @@ while IFS= read -r sandbox; do
         "$name" "$terminal_command"
 
     # ----------------------------------------
-    # tmux session
+    # OpenTerminal tmux session
     # ----------------------------------------
 
     session="openterminal-$name"
@@ -437,7 +552,6 @@ while IFS= read -r sandbox; do
         else
             success "OpenTerminal already running: $name"
             info "Session: $session"
-            continue
         fi
 
     else
@@ -453,13 +567,97 @@ while IFS= read -r sandbox; do
             continue
         fi
 
+        success "OpenTerminal session started."
+        info "Session: $session"
+
     fi
 
-    success "OpenTerminal session started."
-    info "Session: $session"
     info "Endpoint: http://localhost:$port"
 
-done < <(jq -c '.sandboxes[] | select(.enabled == true)' "$CONFIG_FILE")
+    # ----------------------------------------
+    # GUI (noVNC) tmux session when gui=true
+    # ----------------------------------------
+
+    if [[ "$gui_enabled" == "true" ]]; then
+
+        encoded_gui_password=$(printf '%s' "$gui_password" | base64 -w 0)
+
+        gui_command_inner="
+            unset WAYLAND_DISPLAY
+            export DISPLAY=:1 XDG_SESSION_TYPE=x11
+            pkill -x Xvnc 2>/dev/null || true
+            pkill -x websockify 2>/dev/null || true
+            mkdir -p \"\$HOME/.vnc\"
+            chmod 700 \"\$HOME/.vnc\"
+            rm -f \"\$HOME/.vnc/passwd\"
+            GUI_PASS=\$(printf '%s' '$encoded_gui_password' | base64 -d)
+            if [ -n \"\$GUI_PASS\" ]; then
+                printf '%s\n' \"\$GUI_PASS\" | vncpasswd -f > \"\$HOME/.vnc/passwd\"
+                chmod 600 \"\$HOME/.vnc/passwd\"
+                Xvnc :1 -geometry 1920x1080 -depth 24 -SecurityTypes VNCAuth -PasswordFile \"\$HOME/.vnc/passwd\" -localhost yes &
+            else
+                Xvnc :1 -geometry 1920x1080 -depth 24 -SecurityTypes None -localhost yes &
+            fi
+            XVNC_PID=\$!
+            sleep 2
+            kill -0 \"\$XVNC_PID\" 2>/dev/null || { echo \"Xvnc failed to start\" >&2; exit 1; }
+            dbus-launch --exit-with-session startxfce4 >/tmp/xfce.log 2>&1 &
+            exec websockify --web=/usr/share/novnc/ 0.0.0.0:6080 localhost:5901
+        "
+
+        printf -v gui_launch_command \
+            'exec sbx run --name %q -- bash -lc %q' \
+            "$name" "$gui_command_inner"
+
+        gui_session="gui-$name"
+
+        if tmux has-session -t "=$gui_session" 2>/dev/null; then
+
+            gui_pane_dead=$(tmux display-message -p \
+                -t "=$gui_session:0.0" '#{pane_dead}' 2>/dev/null || echo 1)
+
+            if [[ "$gui_pane_dead" == "1" ]]; then
+
+                warning "Restarting stopped GUI session: $name"
+
+                if ! tmux respawn-pane -k \
+                    -t "=$gui_session:0.0" "$gui_launch_command"; then
+                    error "Unable to restart GUI session: $gui_session"
+                    continue
+                fi
+
+            else
+                success "GUI session already running: $name"
+                info "GUI Session: $gui_session"
+            fi
+
+        else
+
+            info "Creating GUI tmux session: $gui_session"
+
+            if ! tmux new-session -d \
+                -s "$gui_session" \
+                -n novnc \
+                "$gui_launch_command"; then
+
+                error "Unable to create GUI tmux session: $gui_session"
+                continue
+            fi
+
+            success "GUI session started."
+            info "GUI Session: $gui_session"
+
+        fi
+
+        if [[ "$gui_host" == "0.0.0.0" ]]; then
+            info "GUI URL: http://localhost:$gui_port/vnc.html (listening on all interfaces)"
+        else
+            info "GUI URL: http://$gui_host:$gui_port/vnc.html"
+        fi
+
+    fi
+
+done
 
 # --------------------------------------------
 # Summary
@@ -478,8 +676,15 @@ tmux list-sessions -F '#{session_name}' 2>/dev/null |
     grep '^openterminal-' || true
 
 echo
+info "GUI tmux sessions:"
+
+tmux list-sessions -F '#{session_name}' 2>/dev/null |
+    grep '^gui-' || true
+
+echo
 info "Attach to a session:"
 echo "tmux attach -t openterminal-SANDBOX_NAME"
+echo "tmux attach -t gui-SANDBOX_NAME"
 
 echo
 info "Detach without stopping it: Ctrl+B, then D"
