@@ -235,19 +235,19 @@ model_list:
       max_input_tokens: 200000
       max_output_tokens: 56000
 
-  - model_name: qwen-flash-next
-    litellm_params:
-      model: openai/Bonsai-2-27B
-      api_base: "http://llamacpp:8080/v1"
-      api_key: os.environ/LLAMACPP_API_KEY
-      order: 2
-    model_info:
-      allowed_fails_policy:
-        RateLimitErrorAllowedFails: 3
-        ServiceUnavailableErrorAllowedFails: 10
-      cooldown_time: 60
-      max_input_tokens: 100000
-      max_output_tokens: 28000
+  # - model_name: qwen-flash-next
+  #   litellm_params:
+  #     model: openai/Bonsai-2-27B
+  #     api_base: "http://llamacpp:8080/v1"
+  #     api_key: os.environ/LLAMACPP_API_KEY
+  #     order: 2
+  #   model_info:
+  #     allowed_fails_policy:
+  #       RateLimitErrorAllowedFails: 3
+  #       ServiceUnavailableErrorAllowedFails: 10
+  #     cooldown_time: 60
+  #     max_input_tokens: 100000
+  #     max_output_tokens: 28000
 
   - model_name: ltllm.Bonsai-2-27B
     litellm_params:

@@ -1,0 +1,15 @@
+{
+  "strata_models": {
+    "qwen3.8-flash-next-iq2_xs": "http://strata:11435",
+    "inkling-2-mini-sq-10": "http://strata-inkling:11436"
+  },
+  "evict_costs": {
+    "qwen3.8-flash-next-iq2_xs": 2
+  },
+  "allowed_combos": [
+    ["qwen3.8-flash-next-iq2_xs","LFM3-1.7B"],
+    ["Ornith-1.5-9B", "Ornith-1.5-9B-Uncensored"],
+    ["Ornith-1.5-35B-Q3"],
+    ["inkling-2-mini-gguf", "LFM3-1.7B"]
+  ]
+}
